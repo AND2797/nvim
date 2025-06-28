@@ -128,7 +128,7 @@ require("lazy").setup({
 
       -- Mason setup
       require('mason').setup({
-        ensure_installed = { 'ruff', 'lua_ls' }, -- Mason installs 'ruff' executable and 'lua_ls' LSP server
+        ensure_installed = { 'ruff', 'lua_ls', 'pyright' }, -- Added 'pyright' for Python language server
       })
 
       require('mason-lspconfig').setup({
@@ -143,7 +143,7 @@ require("lazy").setup({
               on_attach = on_attach,
             })
           end,
-          -- Explicit handler for 'ruff' LSP server
+          -- Explicit handler for 'ruff' LSP server (linting/formatting)
           ruff = function()
             lspconfig.ruff.setup({
               capabilities = capabilities,
@@ -162,6 +162,24 @@ require("lazy").setup({
                   format = {
                       enabled = true
                   },
+              },
+            })
+          end,
+          -- Explicit handler for 'pyright' LSP server (semantic completion, definitions)
+          pyright = function()
+            lspconfig.pyright.setup({
+              capabilities = capabilities,
+              on_attach = on_attach, -- Attach common behavior to pyright
+              filetypes = { 'python' },
+              settings = {
+                -- You can add specific pyright settings here if needed, e.g.:
+                -- python = {
+                --   analysis = {
+                --     typeCheckingMode = "basic",
+                --     autoSearchPaths = true,
+                --     use="python",
+                --   },
+                -- },
               },
             })
           end,
