@@ -100,7 +100,6 @@ require("lazy").setup({
       -- Setup for nvim-cmp
       local cmp = require('cmp')
       local luasnip = require('luasnip')
-
       cmp.setup({
         snippet = {
           expand = function(args)
@@ -354,6 +353,8 @@ vim.api.nvim_create_autocmd('VimResized', {
   end,
 })
 
+require("luasnip.loaders.from_lua").load({paths = "~/.config/nvim/LuaSnip/"})
+
 -- Ensure correct filetype for Python files (though LSP usually handles this)
 vim.api.nvim_create_autocmd({'BufNewFile', 'BufRead'}, {
   pattern = '*.py',
@@ -379,3 +380,21 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+-- LuaSnip 
+require("luasnip").config.set_config({ -- Setting LuaSnip config
+
+  -- Enable autotriggered snippets
+  enable_autosnippets = true,
+
+  -- Use Tab (or some other key if you prefer) to trigger visual selection
+  store_selection_keys = "<Tab>",
+})
+
+-- https://ejmastnak.com/tutorials/vim-latex/luasnip/
+vim.cmd[[
+"Expand or jump in insert mode
+imap <silent><expr> <Tab> luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-or-jump' : '<Tab>' 
+
+"Jump forward through tabstops in visual mode
+smap <silent><expr> <Tab> luasnip#jumpable(1) ? '<Plug>luasnip-jump-next' : '<Tab>'
+]]
