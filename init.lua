@@ -323,7 +323,25 @@ require("lazy").setup({
 
     end
   },
-
+{
+    "lervag/vimtex",
+    lazy = false, -- Very important: VimTeX should not be lazy-loaded for best results
+    init = function()
+      -- VimTeX configuration goes here
+      -- This is where you tell it which PDF viewer to use
+      vim.g.vimtex_view_method = 'zathura' -- Change to 'skim' or 'general' if needed
+      
+      -- This sets the 'leader' for VimTeX commands. 
+      -- By default it is \, but many people prefer <localleader>
+      vim.g.vimtex_mappings_enabled = 1
+      vim.g.vimtex_view_skim_sync = 1
+      vim.g.vimtex_view_skim_activate = 1
+      vim.g.tex_flavor = 'latex'
+      vim.g.vimtex_view_method = 'skim'
+      vim.g.vimtex_quickfix_mode = 0
+      vim.g.vimtex_compiler_method = 'latexmk'
+    end
+  },
   -- === Optional: Colorscheme ===
   {
     'folke/tokyonight.nvim', -- A popular, aesthetically pleasing colorscheme
@@ -398,3 +416,4 @@ imap <silent><expr> <Tab> luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-o
 "Jump forward through tabstops in visual mode
 smap <silent><expr> <Tab> luasnip#jumpable(1) ? '<Plug>luasnip-jump-next' : '<Tab>'
 ]]
+
