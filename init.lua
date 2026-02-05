@@ -370,7 +370,11 @@ vim.api.nvim_create_autocmd('VimResized', {
     require('nvim-tree.api').view.sync()
   end,
 })
-
+require("luasnip").config.set_config({
+    history = true,
+    updateevenets = "TextChanges,TextChangedI",
+    enable_autosnippets = true,
+})
 require("luasnip.loaders.from_lua").load({paths = "~/.config/nvim/LuaSnip/"})
 
 -- Ensure correct filetype for Python files (though LSP usually handles this)
