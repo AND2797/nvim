@@ -207,7 +207,12 @@ require("lazy").setup({
     dependencies = {
       'nvim-lua/plenary.nvim',
       -- Compiled C fuzzy matcher: much faster matching and better result ranking
-      { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
+      {
+        'nvim-telescope/telescope-fzf-native.nvim',
+        build = vim.fn.has('win32') == 1
+            and 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release'
+            or 'make',
+      },
     },
     config = function()
       require('telescope').setup({})
@@ -413,7 +418,7 @@ require("luasnip").config.set_config({
     updateevenets = "TextChanges,TextChangedI",
     enable_autosnippets = true,
 })
-require("luasnip.loaders.from_lua").load({paths = "~/.config/nvim/LuaSnip/"})
+require("luasnip.loaders.from_lua").load({paths = vim.fn.stdpath("config") .. "/LuaSnip/"})
 
 -- Ensure correct filetype for Python files (though LSP usually handles this)
 vim.api.nvim_create_autocmd({'BufNewFile', 'BufRead'}, {

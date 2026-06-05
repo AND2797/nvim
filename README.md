@@ -35,6 +35,38 @@ One-liner for the essentials:
 brew install neovim ripgrep node && brew install --cask dotnet-sdk
 ```
 
+## Windows (Git Bash) notes
+
+Neovim on Windows reads its config from `%LOCALAPPDATA%\nvim`, **not** `~/.config/nvim`
+(even under Git Bash), so clone there:
+
+```bash
+git clone git@github.com:AND2797/nvim.git ~/AppData/Local/nvim
+```
+
+Dependencies via winget:
+
+```powershell
+winget install Neovim.Neovim BurntSushi.ripgrep.MSVC OpenJS.NodeJS Microsoft.DotNet.SDK.8 Kitware.CMake zig.zig
+```
+
+- **C compiler**: treesitter needs one to compile parsers; `zig` (above) is the
+  easiest, or install MSVC Build Tools / MinGW instead.
+- **fzf-native** builds with cmake on Windows automatically (handled in `init.lua`).
+- **Nerd Font**: install one and set it in Windows Terminal's profile settings.
+- **vimtex**: the Skim viewer config is macOS-only; ignore unless you set up
+  LaTeX separately on Windows (e.g. SumatraPDF + MiKTeX).
+- **Terminal shell**: `<C-t>` (toggleterm) uses Neovim's default shell, which is
+  `cmd.exe` on Windows. To get Git Bash instead, add this to `init.lua`:
+
+  ```lua
+  if vim.fn.has('win32') == 1 then
+    vim.o.shell = 'bash.exe'  -- Git Bash (must be on PATH)
+    vim.o.shellcmdflag = '-c'
+    vim.o.shellxquote = ''
+  end
+  ```
+
 ## After first launch
 
 - `:checkhealth` — verify everything is wired up
