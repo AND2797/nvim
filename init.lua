@@ -65,37 +65,49 @@ require("lazy").setup({
       'williamboman/mason.nvim',        -- Plugin to manage LSP servers, DAP servers, linters, and formatters.
       'williamboman/mason-lspconfig.nvim', -- Bridges mason.nvim with nvim-lspconfig.
       'hrsh7th/cmp-nvim-lsp',           -- nvim-cmp source for Neovim's built-in LSP.
+      'hrsh7th/cmp-buffer',             -- nvim-cmp source for words in the current buffer.
       'hrsh7th/nvim-cmp',               -- Auto-completion plugin for Neovim.
       'L3MON4D3/LuaSnip',               -- Snippet engine.
       'saadparwaiz1/cmp_luasnip',       -- nvim-cmp source for LuaSnip.
       'rafamadriz/friendly-snippets',   -- Set of useful snippets.
     },
     config = function()
-      -- LSP configuration setup
-      local lspconfig = require('lspconfig')
+      -- LSP configuration setup (uses the native vim.lsp.config API, Neovim 0.11+)
       local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
-      -- Define a common on_attach function for LSP servers
-      -- This function runs when an LSP client attaches to a buffer
-      local on_attach = function(client, bufnr)
-        -- Enable completion for the attached client
-        vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+      -- Diagnostics display: inline message after the line (off by default since
+      -- Neovim 0.11) plus a bordered float for the full text.
+      vim.diagnostic.config({
+        virtual_text = true,
+        float = { border = 'rounded', source = true },
+        severity_sort = true,
+      })
+      -- Show the full diagnostic message for the current line in a float
+      vim.keymap.set('n', '<leader>d', vim.diagnostic.open_float, { desc = 'Show Line Diagnostics' })
 
-        -- Set keymaps for LSP actions
-        vim.keymap.set('n', 'gd', vim.lsp.buf.definition, { desc = 'Go to Definition', buffer = bufnr })
-        vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, { desc = 'Go to Declaration', buffer = bufnr })
-        vim.keymap.set('n', 'gr', vim.lsp.buf.references, { desc = 'Show References', buffer = bufnr })
-        vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, { desc = 'Go to Implementation', buffer = bufnr })
-        vim.keymap.set('n', 'K', vim.lsp.buf.hover, { desc = 'Hover Documentation', buffer = bufnr })
-        vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, { desc = 'Rename Symbol', buffer = bufnr })
-        vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, { desc = 'Code Action', buffer = bufnr })
-        vim.keymap.set('n', '<leader>f', function() vim.lsp.buf.format { async = true } end, { desc = 'Format Document', buffer = bufnr })
-        vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous diagnostic', buffer = bufnr })
-        vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnostic', buffer = bufnr })
-        vim.keymap.set('n', '<leader>vws', vim.lsp.buf.workspace_symbol, { desc = 'Workspace Symbols', buffer = bufnr })
+      -- Set keymaps for LSP actions whenever any LSP client attaches to a buffer
+      vim.api.nvim_create_autocmd('LspAttach', {
+        group = vim.api.nvim_create_augroup('UserLspConfig', { clear = true }),
+        callback = function(args)
+          local bufnr = args.buf
+          vim.bo[bufnr].omnifunc = 'v:lua.vim.lsp.omnifunc'
 
-        -- You can add more client-specific logic here if needed
-      end
+          -- Jump keymaps go through Telescope: single result jumps directly,
+          -- multiple results open a fuzzy-searchable picker with previews.
+          local tb = require('telescope.builtin')
+          vim.keymap.set('n', 'gd', tb.lsp_definitions, { desc = 'Go to Definition', buffer = bufnr })
+          vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, { desc = 'Go to Declaration', buffer = bufnr })
+          vim.keymap.set('n', 'gr', tb.lsp_references, { desc = 'Show References', buffer = bufnr })
+          vim.keymap.set('n', 'gi', tb.lsp_implementations, { desc = 'Go to Implementation', buffer = bufnr })
+          vim.keymap.set('n', 'K', vim.lsp.buf.hover, { desc = 'Hover Documentation', buffer = bufnr })
+          vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, { desc = 'Rename Symbol', buffer = bufnr })
+          vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, { desc = 'Code Action', buffer = bufnr })
+          vim.keymap.set('n', '<leader>f', function() vim.lsp.buf.format { async = true } end, { desc = 'Format Document', buffer = bufnr })
+          vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous diagnostic', buffer = bufnr })
+          vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnostic', buffer = bufnr })
+          vim.keymap.set('n', '<leader>vws', vim.lsp.buf.workspace_symbol, { desc = 'Workspace Symbols', buffer = bufnr })
+        end,
+      })
 
       -- Setup for nvim-cmp
       local cmp = require('cmp')
@@ -125,64 +137,50 @@ require("lazy").setup({
         })
       })
 
-      -- Mason setup
-      require('mason').setup({
-        ensure_installed = { 'ruff', 'lua_ls', 'pyright' }, -- Added 'pyright' for Python language server
+      -- Default config applied to all LSP servers (cmp completion capabilities)
+      vim.lsp.config('*', {
+        capabilities = capabilities,
       })
 
-      require('mason-lspconfig').setup({
-        ensure_installed = {}, -- No servers automatically ensured by mason-lspconfig, handled by handlers below
-        handlers = {
-          -- Default handler for LSP servers not explicitly configured.
-          -- This will be used for 'lua_ls' and any other LSP server Mason installs
-          -- that doesn't have a specific handler function here.
-          function(server_name)
-            lspconfig[server_name].setup({
-              capabilities = capabilities,
-              on_attach = on_attach,
-            })
-          end,
-          -- Explicit handler for 'ruff' LSP server (linting/formatting)
-          ruff = function()
-            lspconfig.ruff.setup({
-              capabilities = capabilities,
-              on_attach = on_attach, -- Attach common behavior to ruff
-              filetypes = { 'python' },
-              settings = {
-                  args = {
-                      '--stdin-filename', '%f',
-                      '--fix',
-                      '--exit-zero',
-                      '--force-exclude',
-                      '--isolated',
-                      '--respect-gitignore',
-                      '--extend-select', 'I', -- Enable auto-fixable import sorting with 'I'
-                  },
-                  format = {
-                      enabled = true
-                  },
-              },
-            })
-          end,
-          -- Explicit handler for 'pyright' LSP server (semantic completion, definitions)
-          pyright = function()
-            lspconfig.pyright.setup({
-              capabilities = capabilities,
-              on_attach = on_attach, -- Attach common behavior to pyright
-              filetypes = { 'python' },
-              settings = {
-                -- You can add specific pyright settings here if needed, e.g.:
-                -- python = {
-                --   analysis = {
-                --     typeCheckingMode = "basic",
-                --     autoSearchPaths = true,
-                --     use="python",
-                --   },
-                -- },
-              },
-            })
-          end,
+      -- Server-specific settings (merged with nvim-lspconfig's defaults)
+      -- 'ruff' LSP server (linting/formatting)
+      vim.lsp.config('ruff', {
+        filetypes = { 'python' },
+        settings = {
+          args = {
+            '--stdin-filename', '%f',
+            '--fix',
+            '--exit-zero',
+            '--force-exclude',
+            '--isolated',
+            '--respect-gitignore',
+            '--extend-select', 'I', -- Enable auto-fixable import sorting with 'I'
+          },
+          format = {
+            enabled = true
+          },
         },
+      })
+      -- 'pyright' LSP server (semantic completion, definitions)
+      vim.lsp.config('pyright', {
+        filetypes = { 'python' },
+        settings = {
+          -- You can add specific pyright settings here if needed, e.g.:
+          -- python = {
+          --   analysis = {
+          --     typeCheckingMode = "basic",
+          --   },
+          -- },
+        },
+      })
+
+      -- Mason setup
+      require('mason').setup()
+
+      -- mason-lspconfig v2: installs the servers below and automatically
+      -- enables every mason-installed server via vim.lsp.enable()
+      require('mason-lspconfig').setup({
+        ensure_installed = { 'ruff', 'pyright', 'lua_ls', 'omnisharp' },
       })
     end
   },
@@ -192,7 +190,7 @@ require("lazy").setup({
     build = ':TSUpdate',               -- Command to run after installation
     config = function()
       require('nvim-treesitter.configs').setup({
-        ensure_installed = { 'python', 'lua', 'vim' }, -- Install parsers for these languages
+        ensure_installed = { 'python', 'lua', 'vim', 'c_sharp' }, -- Install parsers for these languages
         highlight = {
           enable = true, -- Enable syntax highlighting
         },
@@ -206,14 +204,24 @@ require("lazy").setup({
   {
     'nvim-telescope/telescope.nvim', -- Fuzzy finder for files, buffers, etc.
     tag = '0.1.x',
-    dependencies = { 'nvim-lua/plenary.nvim' },
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      -- Compiled C fuzzy matcher: much faster matching and better result ranking
+      { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
+    },
     config = function()
+      require('telescope').setup({})
+      require('telescope').load_extension('fzf')
       local builtin = require('telescope.builtin')
       vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = 'Find Files' })
       vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = 'Live Grep (search content)' })
       vim.keymap.set('n', '<leader>fb', builtin.buffers, { desc = 'Find Buffers' })
       vim.keymap.set('n', '<leader>fh', builtin.help_tags, { desc = 'Help Tags' })
       vim.keymap.set('n', '<leader>fd', builtin.diagnostics, { desc = 'Show Diagnostics' })
+      -- Colorscheme switcher with live preview as you move through the list
+      vim.keymap.set('n', '<leader>cs', function()
+        builtin.colorscheme({ enable_preview = true })
+      end, { desc = 'Switch Colorscheme (live preview)' })
     end
   },
 
@@ -344,20 +352,50 @@ require("lazy").setup({
   },
   -- === Optional: Colorscheme ===
   {
-    'folke/tokyonight.nvim', -- A popular, aesthetically pleasing colorscheme
-    lazy = false,            -- Load this plugin immediately
-    priority = 1000,         -- Ensure it loads before other plugins
+    'ray-x/lsp_signature.nvim', -- Auto-popup function signature with current argument highlighted as you type
+    event = 'LspAttach',
     config = function()
-      -- Use pcall to safely load the colorscheme in Lua
-      local status_ok, _ = pcall(vim.cmd.colorscheme, "tokyonight-night")
-      if not status_ok then
-        vim.notify("Colorscheme tokyonight-night not found!", vim.log.levels.WARN)
-        -- Fallback to a default colorscheme if tokyonight-night isn't available
-        vim.cmd.colorscheme "default"
-      end
+      require('lsp_signature').setup({
+        hint_enable = false, -- No virtual text hint, just the floating signature window
+        handler_opts = { border = 'rounded' },
+      })
     end
   },
+
+  {
+    'lewis6991/gitsigns.nvim', -- Git change markers in the gutter, hunk preview/blame
+    config = function()
+      require('gitsigns').setup()
+      vim.keymap.set('n', '<leader>gp', ':Gitsigns preview_hunk<CR>', { desc = 'Preview Git Hunk' })
+      vim.keymap.set('n', '<leader>gb', ':Gitsigns blame_line<CR>', { desc = 'Git Blame Line' })
+      vim.keymap.set('n', ']h', ':Gitsigns next_hunk<CR>', { desc = 'Next Git Hunk' })
+      vim.keymap.set('n', '[h', ':Gitsigns prev_hunk<CR>', { desc = 'Previous Git Hunk' })
+    end
+  },
+
+  {
+    'mbbill/undotree', -- Visualize and navigate the undo history tree
+    config = function()
+      vim.keymap.set('n', '<leader>u', vim.cmd.UndotreeToggle, { desc = 'Toggle Undotree' })
+    end
+  },
+
+  -- A small stable of colorschemes, all loaded eagerly so they can be
+  -- switched on the fly (see the <leader>cs Telescope picker below).
+  { 'srcery-colors/srcery-vim', lazy = false, priority = 1000 }, -- retro terminal, high color
+  { 'rebelot/kanagawa.nvim', lazy = false, priority = 1000 },    -- muted ink-wash tones (try kanagawa-dragon)
+  { 'sainnhe/gruvbox-material', lazy = false, priority = 1000 }, -- softer, grayer gruvbox
+  { 'vague-theme/vague.nvim', lazy = false, priority = 1000 },   -- very muted, low-color minimal
+  { 'slugbyte/lackluster.nvim', lazy = false, priority = 1000 }, -- grayscale, near-black bg, minimal color
 }, {})
+
+-- Default colorscheme (all themes above are loaded eagerly, so this is safe).
+-- Use <leader>cs to browse and switch schemes on the fly with live preview.
+local status_ok, _ = pcall(vim.cmd.colorscheme, "lackluster-night")
+if not status_ok then
+  vim.notify("Colorscheme lackluster-night not found!", vim.log.levels.WARN)
+  vim.cmd.colorscheme "default"
+end
 
 -- =============================================================================
 -- Autocommands (Optional but useful)
